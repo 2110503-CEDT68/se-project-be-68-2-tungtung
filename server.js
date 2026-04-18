@@ -1,8 +1,14 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const User = require('./models/User');
+const Message = require('./models/Message');
+const { setIO } = require('./utils/socketInstance');
 
 // Load env vars
 dotenv.config({ path: './config/config.env' });
@@ -14,6 +20,7 @@ connectDB();
 const providers = require('./routes/providers');
 const bookings = require('./routes/bookings');
 const auth = require('./routes/auth');
+const chat = require('./routes/chat');
 
 const app = express();
 app.set('query parser', 'extended');
@@ -30,6 +37,92 @@ app.use(cookieParser());
 app.use('/api/v1/providers', providers);
 app.use('/api/v1/bookings', bookings);
 app.use('/api/v1/auth', auth);
+app.use('/api/v1/chat', chat);
 
-// ← ลบ app.listen() ออก แล้ว export แทน
-module.exports = app;
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+setIO(io);
+
+// Authenticate Socket.IO connections via JWT
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('Authentication error'));
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) return next(new Error('User not found'));
+    socket.user = user;
+    next();
+  } catch (err) {
+    next(new Error('Authentication error'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const user = socket.user;
+
+  // Users auto-join their own room; admins join on request
+  if (user.role === 'user') {
+    socket.join(`room:${user._id}`);
+  }
+
+  socket.on('join_room', (roomId) => {
+    if (user.role === 'admin') {
+      socket.join(`room:${roomId}`);
+    }
+  });
+
+  socket.on('send_message', async ({ content, room }) => {
+    if (!content || content.trim().length === 0) return;
+    if (content.trim().length > 1000) return;
+
+    const roomId = user.role === 'user' ? user._id.toString() : room;
+    if (!roomId) return;
+
+    try {
+      const message = await Message.create({
+        room: roomId,
+        sender: user._id,
+        senderName: user.name,
+        senderRole: user.role,
+        content: content.trim(),
+        status: 'sent',
+      });
+
+      io.to(`room:${roomId}`).emit('receive_message', {
+        _id: message._id,
+        room: roomId,
+        sender: user._id,
+        senderName: user.name,
+        senderRole: user.role,
+        content: message.content,
+        status: message.status,
+        timestamp: message.timestamp,
+      });
+    } catch (err) {
+      socket.emit('message_error', { msg: 'Failed to send message' });
+    }
+  });
+
+  socket.on('mark_read', async (roomId) => {
+    // admin marks any room; user marks only their own room
+    const allowedRoom = user.role === 'admin' ? roomId : user._id.toString();
+    if (!allowedRoom || (user.role === 'user' && roomId !== allowedRoom)) return;
+    try {
+      await Message.updateMany({ room: allowedRoom, status: 'sent' }, { status: 'read' });
+      io.to(`room:${allowedRoom}`).emit('messages_read', { room: allowedRoom });
+    } catch (err) {
+      // silently ignore mark_read errors
+    }
+  });
+});
+
+module.exports = { app, httpServer };
