@@ -125,4 +125,7 @@ io.on('connection', (socket) => {
   });
 });
 
-module.exports = { app, httpServer };
+// Vercel uses `require('./server')` → ต้องการ app โดยตรง
+// app.js ใช้ `.httpServer` สำหรับ local listen()
+module.exports = app;
+module.exports.httpServer = httpServer;
