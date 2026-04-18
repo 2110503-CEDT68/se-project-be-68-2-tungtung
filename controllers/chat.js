@@ -74,6 +74,26 @@ exports.getChatHistory = async (req, res) => {
   }
 };
 
+//@desc Mark all messages in a room as read (REST fallback for markRead)
+//@route PUT /api/v1/chat/:roomId/read
+//@access Private
+exports.markRoomRead = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    // user can only mark their own room; admin can mark any room
+    if (req.user.role !== 'admin' && req.user.id !== roomId) {
+      return res.status(403).json({ success: false, msg: 'Not authorized' });
+    }
+
+    await Message.updateMany({ room: roomId, status: 'sent' }, { status: 'read' });
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, msg: 'Failed to mark messages as read' });
+  }
+};
+
 //@desc Send message via REST (fallback when WebSocket unavailable)
 //@route POST /api/v1/chat/send
 //@access Private
