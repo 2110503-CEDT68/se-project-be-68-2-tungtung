@@ -21,6 +21,7 @@ const providers = require('./routes/providers');
 const bookings = require('./routes/bookings');
 const auth = require('./routes/auth');
 const chat = require('./routes/chat');
+const reviews = require('./routes/reviews');
 
 const app = express();
 app.set('query parser', 'extended');
@@ -38,6 +39,7 @@ app.use('/api/v1/providers', providers);
 app.use('/api/v1/bookings', bookings);
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/chat', chat);
+app.use('/api/v1/reviews', reviews);
 
 const httpServer = http.createServer(app);
 

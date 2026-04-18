@@ -1,0 +1,138 @@
+{
+  "info": {
+    "_postman_id": "13.Review Operations",
+    "name": "13.Review Operations",
+    "description": "Review creation, reading, updating, and deletion operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get All Reviews",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/reviews",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "reviews"]
+        },
+        "description": "Retrieve all reviews (public endpoint)"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Single Review",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/reviews/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "reviews", ":id"]
+        },
+        "description": "Get a single review by ID"
+      },
+      "response": []
+    },
+    {
+      "name": "Create Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent service and very reliable!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/providers/:providerId/reviews",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "providers", ":providerId", "reviews"]
+        },
+        "description": "Create a new review for a provider. Rating must be 1-5, comment max 1000 characters"
+      },
+      "response": []
+    },
+    {
+      "name": "Update Review",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated review - still very good!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/reviews/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "reviews", ":id"]
+        },
+        "description": "Update an existing review (only owner can update)"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Review",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/reviews/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "reviews", ":id"]
+        },
+        "description": "Delete a review (only owner can delete)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "providerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reviewId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
