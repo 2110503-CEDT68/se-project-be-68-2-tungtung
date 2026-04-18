@@ -1,0 +1,213 @@
+{
+  "info": {
+    "_postman_id": "34655ff6-a8a3-4b6b-a2ba-d71e5a7fdddb",
+    "name": "12.Admin Delete",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "52473461",
+    "_collection_link": "https://go.postman.co/collection/52473461-34655ff6-a8a3-4b6b-a2ba-d71e5a7fdddb?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "const jsonData = pm.response.json();\r",
+              "pm.test(\"Response has token\", function () {\r",
+              "    pm.expect(jsonData).to.have.property(\"token\");\r",
+              "});\r",
+              "\r",
+              "pm.collectionVariables.set(\"TOKEN\", pm.response.json().token);\r",
+              "\r",
+              "console.log(\"Token saved:\", jsonData.token);\r",
+              "\r",
+              "pm.execution.setNextRequest(\"ฺGet Booking\");"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"email\": \"admin@gmail.com\",\r\n    \"password\": \"12345678\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/api/v1/auth/login",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "ฺGet Booking",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"There are some booking\", function() {\r",
+              "    pm.expect(pm.response.json().count).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "pm.collectionVariables.set(\"bookingID\", pm.response.json().data[0]._id);\r",
+              "pm.collectionVariables.set(\"bookingCount\", pm.response.json().count);\r",
+              "\r",
+              "pm.execution.setNextRequest(\"Admin Delete Booking\");"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/api/v1/bookings",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bookings"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin Delete Booking",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "const jsonData = pm.response.json();\r",
+              "const oldCount = pm.collectionVariables.get(\"bookingCount\");\r",
+              "\r",
+              "pm.test(\"BookingCount has changed\", function () {\r",
+              "    pm.expect(jsonData.count).to.not.equal(oldCount);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/api/v1/bookings/{{bookingID}}",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bookings",
+            "{{bookingID}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "url",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "TOKEN",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YTU5YmNmYjg0YzZmOTNiNzY3NTQ5NiIsImlhdCI6MTc3MjUyMDMzOSwiZXhwIjoxNzc1MTEyMzM5fQ.HGjICNnLBRzQXuD-WpEcv6_heH2uZ-njMUOiaP4UERs"
+    },
+    {
+      "key": "bookingID",
+      "value": "69a6753e4ac18877693a86aa"
+    },
+    {
+      "key": "bookingCount",
+      "value": 3
+    }
+  ]
+}

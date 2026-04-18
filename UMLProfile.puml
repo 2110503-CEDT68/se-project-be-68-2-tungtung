@@ -1,0 +1,52 @@
+@startuml
+
+class User <<entity>> {
+    +name : String
+    +email : String
+    +telephone : String
+    +role : String
+    +password : String
+    +resetPasswordToken : String
+    +resetPasswordExpire : Date
+    +createdAt : Date
+}
+
+class Provider <<entity>> {
+    +name : String
+    +address : String
+    +tel : String
+}
+
+class Booking <<entity>> {
+    +rentalDate : Date
+    +createdAt : Date
+}
+
+class AuthController <<control>>
+class BookingController <<control>>
+class ProviderController <<control>>
+
+class AuthRoute <<route>>
+class BookingRoute <<route>>
+class ProviderRoute <<route>>
+
+class AuthMiddleware <<middleware>>
+
+User "1" -- "0..3   " Booking
+Provider "1  " -- "0..*" Booking
+
+BookingController ..> Booking
+BookingController ..> Provider
+BookingController ..> User
+AuthController ..> User
+ProviderController ..> Provider
+
+AuthRoute ..> AuthMiddleware
+BookingRoute ..> AuthMiddleware
+ProviderRoute ..> AuthMiddleware
+
+AuthRoute ..> AuthController
+BookingRoute ..> BookingController
+ProviderRoute ..> ProviderController
+
+@enduml
