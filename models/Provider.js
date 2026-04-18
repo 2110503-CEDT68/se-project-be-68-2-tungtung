@@ -14,6 +14,17 @@ const ProviderSchema = new mongoose.Schema({
     },
     tel: {
         type: String,
+    },
+    averageRating: {
+        type: Number,
+        min: [0, 'Average rating cannot be lower than 0'],
+        max: [5, 'Average rating cannot be higher than 5'],
+        default: 0
+    },
+    reviewCount: {
+        type: Number,
+        min: [0, 'Review count cannot be negative'],
+        default: 0
     }
 });
 
