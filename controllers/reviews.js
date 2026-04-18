@@ -1,5 +1,7 @@
 const Review = require('../models/Review');
 const Provider = require('../models/Provider');
+const Booking = require('../models/Booking');
+const mongoose = require('mongoose');
 
 //@desc Get all reviews
 //@route GET /api/v1/reviews
@@ -62,17 +64,24 @@ exports.createReview = async (req, res, next) => {
         // Validate request body
         const { rating, comment } = req.body;
 
-        if (!rating || !comment) {
+        if (rating === undefined || comment === undefined) {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Please provide rating and comment' 
             });
         }
 
-        if (isNaN(rating) || rating < 1 || rating > 5) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.providerId)) {
+            return res.status(404).json({
+                success: false,
+                message: 'No provider with the id of ' + req.params.providerId
+            });
+        }
+
+        if (isNaN(rating) || rating < 1 || rating > 5 || !Number.isInteger(Number(rating))) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Rating must be a number between 1 and 5' 
+                message: 'Rating must be a whole number between 1 and 5' 
             });
         }
 
@@ -96,6 +105,19 @@ exports.createReview = async (req, res, next) => {
             return res.status(404).json({ 
                 success: false, 
                 message: 'No provider with the id of ' + req.params.providerId 
+            });
+        }
+
+        // A user can review a provider only after booking that provider.
+        const hasBooking = await Booking.exists({
+            user: req.user.id,
+            provider: req.params.providerId
+        });
+
+        if (!hasBooking) {
+            return res.status(403).json({
+                success: false,
+                message: 'You must book this provider before leaving a review'
             });
         }
 
@@ -124,6 +146,13 @@ exports.createReview = async (req, res, next) => {
         });
     } catch (err) {
         console.log(err);
+        if (err.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already reviewed this provider'
+            });
+        }
+
         if (err.name === 'ValidationError') {
             const messages = Object.values(err.errors).map(e => e.message);
             return res.status(400).json({ success: false, message: messages[0] });
@@ -156,10 +185,15 @@ exports.updateReview = async (req, res, next) => {
 
         // Validate update data if provided
         if (req.body.rating !== undefined) {
-            if (isNaN(req.body.rating) || req.body.rating < 1 || req.body.rating > 5) {
+            if (
+                isNaN(req.body.rating) ||
+                req.body.rating < 1 ||
+                req.body.rating > 5 ||
+                !Number.isInteger(Number(req.body.rating))
+            ) {
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Rating must be a number between 1 and 5' 
+                    message: 'Rating must be a whole number between 1 and 5' 
                 });
             }
         }
@@ -183,8 +217,6 @@ exports.updateReview = async (req, res, next) => {
         // Update the review
         if (req.body.rating !== undefined) review.rating = req.body.rating;
         if (req.body.comment !== undefined) review.comment = req.body.comment;
-        review.updatedAt = Date.now();
-
         const updatedReview = await review.save();
 
         res.status(200).json({
@@ -223,7 +255,7 @@ exports.deleteReview = async (req, res, next) => {
             });
         }
 
-        await Review.findByIdAndRemove(req.params.id);
+        await Review.findByIdAndDelete(req.params.id);
 
         res.status(200).json({
             success: true,

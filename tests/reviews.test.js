@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const User = require('../models/User');
 const Provider = require('../models/Provider');
+const Booking = require('../models/Booking');
 
 // Mock server for testing
 const express = require('express');
@@ -52,10 +53,18 @@ describe('Review API Tests', () => {
             tel: '098-765-4321'
         });
         providerId = provider._id;
+
+        // User must book provider before creating a review.
+        await Booking.create({
+            user: userId,
+            provider: providerId,
+            rentalDate: new Date()
+        });
     });
 
     afterAll(async () => {
         await Review.deleteMany({});
+        await Booking.deleteMany({});
         await User.deleteMany({});
         await Provider.deleteMany({});
         if (mongoose.connection.readyState) {
@@ -204,6 +213,30 @@ describe('Review API Tests', () => {
 
             expect(res.status).toBe(401);
             expect(res.body.success).toBe(false);
+        });
+
+        test('Should fail if user has not booked this provider', async () => {
+            const userWithoutBooking = await User.create({
+                name: 'No Booking User',
+                email: 'nobooking@test.com',
+                telephone: '888-111-2222',
+                password: 'password123'
+            });
+            const tokenWithoutBooking = userWithoutBooking.getSignedJwtToken();
+
+            const res = await request(app)
+                .post(`/api/v1/providers/${providerId}/reviews`)
+                .set('Authorization', `Bearer ${tokenWithoutBooking}`)
+                .send({
+                    rating: 5,
+                    comment: 'Trying without booking'
+                });
+
+            expect(res.status).toBe(403);
+            expect(res.body.success).toBe(false);
+            expect(res.body.message).toContain('must book');
+
+            await User.deleteOne({ _id: userWithoutBooking._id });
         });
     });
 
@@ -363,14 +396,16 @@ describe('Review API Tests', () => {
     // ============ DELETE REVIEW TESTS ============
     describe('DELETE /api/v1/reviews/:id - Delete Review', () => {
         let reviewToDelete;
+        let providerForDelete;
 
         beforeEach(async () => {
             // Create a review to delete
             const newProvider = await Provider.create({
-                name: 'Provider for Delete Test',
+                name: `Provider for Delete Test ${new mongoose.Types.ObjectId()}`,
                 address: '456 Test Ave',
                 tel: '098-123-4567'
             });
+            providerForDelete = newProvider._id;
 
             const newReview = await Review.create({
                 user: userId,
@@ -379,6 +414,11 @@ describe('Review API Tests', () => {
                 comment: 'To be deleted'
             });
             reviewToDelete = newReview._id;
+        });
+
+        afterEach(async () => {
+            await Review.deleteOne({ _id: reviewToDelete });
+            await Provider.deleteOne({ _id: providerForDelete });
         });
 
         test('Should delete review if owner', async () => {
