@@ -1,9 +1,17 @@
+// Set env vars BEFORE requiring any model that uses them (JWT signing)
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-for-reviews';
+process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '1d';
+process.env.JWT_COOKIE_EXPIRE = process.env.JWT_COOKIE_EXPIRE || '1';
+
 const request = require('supertest');
 const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const Review = require('../models/Review');
 const User = require('../models/User');
 const Provider = require('../models/Provider');
 const Booking = require('../models/Booking');
+
+let mongo;
 
 // Mock server for testing
 const express = require('express');
@@ -31,10 +39,9 @@ describe('Review API Tests', () => {
     let userId, providerId, reviewId, token;
 
     beforeAll(async () => {
-        // Connect to test database
-        if (!mongoose.connection.readyState) {
-            await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/reviews-test');
-        }
+        // Use in-memory MongoDB for isolation (no local Mongo required)
+        mongo = await MongoMemoryServer.create();
+        await mongoose.connect(mongo.getUri());
 
         // Create test user
         const user = await User.create({
@@ -63,13 +70,8 @@ describe('Review API Tests', () => {
     });
 
     afterAll(async () => {
-        await Review.deleteMany({});
-        await Booking.deleteMany({});
-        await User.deleteMany({});
-        await Provider.deleteMany({});
-        if (mongoose.connection.readyState) {
-            await mongoose.connection.close();
-        }
+        await mongoose.disconnect();
+        if (mongo) await mongo.stop();
     });
 
     // ============ CREATE REVIEW TESTS ============

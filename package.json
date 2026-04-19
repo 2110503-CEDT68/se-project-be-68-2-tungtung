@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --forceExit --detectOpenHandles",
     "dev": "nodemon app.js"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "jest": "^30.3.0",
+    "mongodb-memory-server": "^10.4.3",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2"
   }
