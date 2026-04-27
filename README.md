@@ -1,5 +1,19 @@
 Vercel : https://se-project-be-68-2-tungtung.vercel.app/
 
+## Swagger API Docs
+
+Run backend locally, then open:
+
+- Swagger UI: http://localhost:5000/api-docs
+- Raw OpenAPI JSON: http://localhost:5000/api-docs.json
+
+Start backend locally:
+
+```bash
+npm install
+npm run dev
+```
+
 ## Git Remote Setup
 
 ```bash

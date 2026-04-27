@@ -6,9 +6,11 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const swaggerUi = require('swagger-ui-express');
 const User = require('./models/User');
 const Message = require('./models/Message');
 const { setIO } = require('./utils/socketInstance');
+const swaggerSpec = require('./docs/swaggerSpec');
 
 // Load env vars
 dotenv.config({ path: './config/config.env' });
@@ -34,6 +36,19 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+
+app.get('/api-docs.json', (req, res) => {
+  res.status(200).json(swaggerSpec);
+});
+
+app.use(
+  '/api/v1/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customSiteTitle: 'Rental Car Booking System API Docs',
+  })
+);
 
 app.use('/api/v1/providers', providers);
 app.use('/api/v1/bookings', bookings);
