@@ -3,6 +3,7 @@ jest.mock('../models/Message', () => ({
   find: jest.fn(),
   updateMany: jest.fn(),
   create: jest.fn(),
+  findById: jest.fn(),
 }));
 
 jest.mock('../models/Review', () => ({
@@ -188,6 +189,182 @@ describe('Chat and Reviews Logic Unit Tests', () => {
       );
       expect(res.status).toHaveBeenCalledWith(500);
     });
+
+    test('updateMessage validation, authorization, socket branches, and failure', async () => {
+      const res = createRes();
+
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm1' },
+          body: { content: '   ' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(400);
+
+      Message.findById.mockResolvedValueOnce(null);
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm1' },
+          body: { content: 'hello' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      Message.findById.mockResolvedValueOnce({
+        sender: { toString: () => 'u2' },
+      });
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm1' },
+          body: { content: 'hello' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(403);
+
+      const emitUpdated = jest.fn();
+      const ioWithSocket = { to: jest.fn(() => ({ emit: emitUpdated })) };
+      getIO.mockReturnValueOnce(ioWithSocket);
+      const ownMessageWithSocket = {
+        _id: 'm1',
+        room: 'u1',
+        sender: { toString: () => 'u1' },
+        content: 'old',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Message.findById.mockResolvedValueOnce(ownMessageWithSocket);
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm1' },
+          body: { content: '  updated text  ' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(ownMessageWithSocket.content).toBe('updated text');
+      expect(ownMessageWithSocket.save).toHaveBeenCalled();
+      expect(ioWithSocket.to).toHaveBeenCalledWith('room:u1');
+      expect(emitUpdated).toHaveBeenCalledWith('message_updated', ownMessageWithSocket);
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      getIO.mockReturnValueOnce(null);
+      const ownMessageNoSocket = {
+        _id: 'm2',
+        room: 'u1',
+        sender: { toString: () => 'u1' },
+        content: 'old2',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Message.findById.mockResolvedValueOnce(ownMessageNoSocket);
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm2' },
+          body: { content: 'updated again' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      Message.findById.mockRejectedValueOnce(new Error('db'));
+      await chatController.updateMessage(
+        {
+          params: { messageId: 'm3' },
+          body: { content: 'x' },
+          user: { _id: 'u1' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    test('deleteMessage not found, authorization, socket branches, and failure', async () => {
+      const res = createRes();
+
+      Message.findById.mockResolvedValueOnce(null);
+      await chatController.deleteMessage(
+        {
+          params: { messageId: 'm1' },
+          user: { _id: 'u1', role: 'user' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+
+      Message.findById.mockResolvedValueOnce({
+        sender: { toString: () => 'u2' },
+      });
+      await chatController.deleteMessage(
+        {
+          params: { messageId: 'm1' },
+          user: { _id: 'u1', role: 'user' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(403);
+
+      const emitDeleted = jest.fn();
+      const ioWithSocket = { to: jest.fn(() => ({ emit: emitDeleted })) };
+      getIO.mockReturnValueOnce(ioWithSocket);
+      const ownMessageWithSocket = {
+        _id: 'm1',
+        room: 'u1',
+        sender: { toString: () => 'u1' },
+        isDeleted: false,
+        content: 'hello',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Message.findById.mockResolvedValueOnce(ownMessageWithSocket);
+      await chatController.deleteMessage(
+        {
+          params: { messageId: 'm1' },
+          user: { _id: 'u1', role: 'user' },
+        },
+        res
+      );
+      expect(ownMessageWithSocket.isDeleted).toBe(true);
+      expect(ownMessageWithSocket.content).toBe('[deleted]');
+      expect(ownMessageWithSocket.save).toHaveBeenCalled();
+      expect(ioWithSocket.to).toHaveBeenCalledWith('room:u1');
+      expect(emitDeleted).toHaveBeenCalledWith('message_deleted', { _id: 'm1' });
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      getIO.mockReturnValueOnce(null);
+      const adminDeleteMessage = {
+        _id: 'm2',
+        room: 'u2',
+        sender: { toString: () => 'another-user' },
+        isDeleted: false,
+        content: 'hello2',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Message.findById.mockResolvedValueOnce(adminDeleteMessage);
+      await chatController.deleteMessage(
+        {
+          params: { messageId: 'm2' },
+          user: { _id: 'admin1', role: 'admin' },
+        },
+        res
+      );
+      expect(adminDeleteMessage.isDeleted).toBe(true);
+      expect(adminDeleteMessage.content).toBe('[deleted]');
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      Message.findById.mockRejectedValueOnce(new Error('db'));
+      await chatController.deleteMessage(
+        {
+          params: { messageId: 'm3' },
+          user: { _id: 'u1', role: 'user' },
+        },
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
   });
 
   describe('reviews controller', () => {
@@ -316,6 +493,30 @@ describe('Chat and Reviews Logic Unit Tests', () => {
       Review.create.mockRejectedValueOnce(new Error('db')); 
       await reviewsController.createReview(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
+
+      objectIdSpy.mockRestore();
+    });
+
+    test('createReview allows admin without booking prerequisite', async () => {
+      const res = createRes();
+      const objectIdSpy = jest.spyOn(mongoose.Types.ObjectId, 'isValid').mockReturnValue(true);
+
+      const req = {
+        params: { providerId: 'p1' },
+        user: { id: 'admin1', role: 'admin' },
+        body: { rating: 5, comment: 'admin review' },
+      };
+
+      Provider.findById.mockResolvedValueOnce({ _id: 'p1' });
+      Review.findOne.mockResolvedValueOnce(null);
+      Review.create.mockResolvedValueOnce({ _id: 'r-admin', rating: 5, comment: 'admin review' });
+
+      await reviewsController.createReview(req, res);
+
+      expect(Booking.exists).not.toHaveBeenCalled();
+      expect(req.body.provider).toBe('p1');
+      expect(req.body.user).toBe('admin1');
+      expect(res.status).toHaveBeenCalledWith(201);
 
       objectIdSpy.mockRestore();
     });

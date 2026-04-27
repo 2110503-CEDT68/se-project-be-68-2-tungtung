@@ -31,12 +31,12 @@ const {
 // Setup test routes
 app.get('/api/v1/reviews', getReviews);
 app.get('/api/v1/reviews/:id', getReview);
-app.post('/api/v1/providers/:providerId/reviews', protect, authorize('user'), createReview);
-app.put('/api/v1/reviews/:id', protect, authorize('user'), updateReview);
-app.delete('/api/v1/reviews/:id', protect, authorize('user'), deleteReview);
+app.post('/api/v1/providers/:providerId/reviews', protect, authorize('user', 'admin'), createReview);
+app.put('/api/v1/reviews/:id', protect, authorize('user', 'admin'), updateReview);
+app.delete('/api/v1/reviews/:id', protect, authorize('user', 'admin'), deleteReview);
 
 describe('Review API Tests', () => {
-    let userId, providerId, reviewId, token;
+    let userId, providerId, reviewId, token, adminToken;
 
     beforeAll(async () => {
         // Use in-memory MongoDB for isolation (no local Mongo required)
@@ -52,6 +52,15 @@ describe('Review API Tests', () => {
         });
         userId = user._id;
         token = user.getSignedJwtToken();
+
+        const admin = await User.create({
+            name: 'Admin User',
+            email: 'admin-reviews@test.com',
+            telephone: '111-222-3333',
+            password: 'password123',
+            role: 'admin'
+        });
+        adminToken = admin.getSignedJwtToken();
 
         // Create test provider
         const provider = await Provider.create({
@@ -239,6 +248,21 @@ describe('Review API Tests', () => {
             expect(res.body.message).toContain('must book');
 
             await User.deleteOne({ _id: userWithoutBooking._id });
+        });
+
+        test('Should allow admin to create review without booking', async () => {
+            const res = await request(app)
+                .post(`/api/v1/providers/${providerId}/reviews`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    rating: 4,
+                    comment: 'Admin moderation review'
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.rating).toBe(4);
+            expect(res.body.data.comment).toBe('Admin moderation review');
         });
     });
 
