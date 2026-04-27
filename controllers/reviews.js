@@ -175,8 +175,11 @@ exports.updateReview = async (req, res, next) => {
             });
         }
 
-        // Check authorization - only owner can update
-        if (review.user.toString() !== req.user.id) {
+        // Check authorization - owner OR admin can update
+        const isOwner = review.user.toString() === req.user.id;
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isOwner && !isAdmin) {
             return res.status(403).json({ 
                 success: false, 
                 message: 'Not authorized to update this review' 
@@ -235,7 +238,7 @@ exports.updateReview = async (req, res, next) => {
 
 //@desc Delete review
 //@route DELETE /api/v1/reviews/:id
-//@access Private
+//@access Private (owner or admin)
 exports.deleteReview = async (req, res, next) => {
     try {
         const review = await Review.findById(req.params.id);
@@ -247,8 +250,11 @@ exports.deleteReview = async (req, res, next) => {
             });
         }
 
-        // Check authorization - only owner can delete
-        if (review.user.toString() !== req.user.id) {
+        // Check authorization - owner OR admin can delete
+        const isOwner = review.user.toString() === req.user.id;
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isOwner && !isAdmin) {
             return res.status(403).json({ 
                 success: false, 
                 message: 'Not authorized to delete this review' 
