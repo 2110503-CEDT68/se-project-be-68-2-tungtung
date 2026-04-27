@@ -108,17 +108,19 @@ exports.createReview = async (req, res, next) => {
             });
         }
 
-        // A user can review a provider only after booking that provider.
-        const hasBooking = await Booking.exists({
-            user: req.user.id,
-            provider: req.params.providerId
-        });
-
-        if (!hasBooking) {
-            return res.status(403).json({
-                success: false,
-                message: 'You must book this provider before leaving a review'
+        // Regular users must book before reviewing; admins may leave moderation reviews.
+        if (req.user.role !== 'admin') {
+            const hasBooking = await Booking.exists({
+                user: req.user.id,
+                provider: req.params.providerId
             });
+
+            if (!hasBooking) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You must book this provider before leaving a review'
+                });
+            }
         }
 
         // Check if user already has a review for this provider
