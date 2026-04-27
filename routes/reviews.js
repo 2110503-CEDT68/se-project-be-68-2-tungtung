@@ -11,8 +11,8 @@ router.route('/').get(getReviews);
 // Get single review (public)
 router.route('/:id').get(getReview);
 
-// Create review for a provider (private - user only)
-router.route('/').post(protect, authorize('user'), createReview);
+// Create review for a provider (private - user or admin)
+router.route('/').post(protect, authorize('user', 'admin'), createReview);
 
 // Update review (private - owner or admin)
 router.route('/:id').put(protect, authorize('user', 'admin'), updateReview);
