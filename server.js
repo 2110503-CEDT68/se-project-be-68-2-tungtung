@@ -92,7 +92,10 @@ io.on('connection', (socket) => {
   }
 
   socket.on('join_room', (roomId) => {
-    if (user.role === 'admin') {
+    const canJoin =
+      user.role === 'admin' || roomId === user._id.toString();
+
+    if (canJoin) {
       socket.join(`room:${roomId}`);
     }
   });
